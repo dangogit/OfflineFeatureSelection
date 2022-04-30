@@ -61,7 +61,7 @@ def run_simulations(k, classifier, folder_path):
     acc_results = pd.DataFrame(columns="Dataset" + fs_methods)
     time_results = pd.DataFrame(columns="Dataset" + fs_methods)
 
-    for data_name, data in read_csv_data_from_folder(folder_path).values():
+    for data_name, data in read_csv_data_from_folder(folder_path).items():
         normalize_data(data)
         data_acc_res = {"Dataset": data_name}
         data_time_res = {"Dataset": data_name}
