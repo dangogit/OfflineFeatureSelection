@@ -6,11 +6,9 @@ from skfeature.function.similarity_based import lap_score
 from skfeature.utility import construct_W
 from scipy.stats import kurtosis, skew
 import operator
-from skfeature.utility import unsupervised_evaluation
 import pandas as pd
 import numpy as np
 import time
-import glob
 import os
 
 from sklearn.model_selection import cross_val_score
@@ -18,7 +16,6 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler
-from sklearn import datasets
 from sklearn.svm import LinearSVC
 
 classifiers = {"LinearSVM": LinearSVC(random_state=0, tol=1e-5, max_iter=10000),
@@ -29,8 +26,6 @@ classifiers = {"LinearSVM": LinearSVC(random_state=0, tol=1e-5, max_iter=10000),
 
 def find_csv_files_in_folder(folder_path):
     dataframes = {}
-    # csv_files = list(filter(lambda f: f.endswith('.csv'), os.listdir(folder_path)))
-    # for csv_file in csv_files:
     print(f"Looking for csv files in {folder_path}")
     for root, dirs, files in os.walk(folder_path):
         for file in files:
@@ -38,7 +33,6 @@ def find_csv_files_in_folder(folder_path):
                 file_name = file.split('.csv')[0]
                 csv_file = os.path.join(root, file)
                 print(f"Found [{file_name}] dataset")
-                # temp_df = pd.read_csv(csv_file)
                 dataframes[file_name] = csv_file
     return dataframes
 
@@ -64,7 +58,7 @@ def skewness(X, **kwargs):
     for item in skewi:
         skew[i] = item
         i = i + 1
-    sorted_i1 = sorted(skew.items(), key=operator.itemgetter(1), reverse=True)  # thif for desc order
+    sorted_i1 = sorted(skew.items(), key=operator.itemgetter(1), reverse=True)
     sorted_keys = [item[0] for item in sorted_i1]
     return sorted_keys
 
@@ -78,7 +72,7 @@ def variance(X, **kwargs):
     for item in vari:
         var[i] = item
         i = i + 1
-    sorted_i1 = sorted(var.items(), key=operator.itemgetter(1), reverse=True)  # thif for desc order
+    sorted_i1 = sorted(var.items(), key=operator.itemgetter(1), reverse=True)
     sorted_keys = [item[0] for item in sorted_i1]
     return sorted_keys
 
@@ -93,7 +87,7 @@ def run_fs_method(data, fs, k, classifier):
 
     total_acc = 0
     total_time = 0
-    y = data.iloc[:, -1:]
+    y = np.ravel(data.iloc[:, -1:])
     data_values = data.values.astype(float)
     kwargs_W = {"metric": "euclidean", "neighbor_mode": "knn", "weight_mode": "heat_kernel", "k": k, 't': 1}
     try:
@@ -156,16 +150,16 @@ def run_simulations(k, classifier, folder_path):
 
     print("Final accuracy results table:")
     print(acc_results)
-    acc_results.to_csv('acc_results.csv')
+    acc_results.to_csv(f'{classifier}_acc_results.csv')
 
     print("Final cpu time results table:")
     print(time_results)
-    time_results.to_csv('time_results.csv')
+    time_results.to_csv(f'{classifier}_time_results.csv')
 
 
 def main():
-    run_simulations(5, "LinearSVM",
-                    r"C:\Users\Daniel\Desktop\Fires Dataset-20220425T153127Z-001\Fires Dataset\datasets\a")
+    for c in classifiers:
+        run_simulations(5, c, r"C:\Users\Daniel\Desktop\Fires Dataset-20220425T153127Z-001\Fires Dataset\datasets\a")
 
 
 if __name__ == "__main__":
