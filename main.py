@@ -137,8 +137,6 @@ def run_simulations(k, classifier, folder_path):
 
         print("Begin feature selection evaluations")
         for fs in fs_methods:
-            if fs == "FCBF":
-                continue
             print(f"Evaluating {fs}")
             avc_acc, avg_time = run_fs_method(data, fs.lower(), k, classifier)
             print(f"Finished {fs} evaluation.")
