@@ -1,3 +1,4 @@
+import scipy
 from skfeature.function.information_theoretical_based import FCBF
 from skfeature.function.information_theoretical_based import MRMR
 from skfeature.function.information_theoretical_based import MIM
@@ -20,18 +21,26 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn import datasets
 from sklearn.svm import LinearSVC
 
-classifiers = {"LinearSVM": LinearSVC(random_state=0, tol=1e-5,max_iter=10000),
-                "KNN": KNeighborsClassifier(n_neighbors=3),
-                "NB": GaussianNB(),
-                "ANN": MLPClassifier(random_state=1, max_iter=300)}
+classifiers = {"LinearSVM": LinearSVC(random_state=0, tol=1e-5, max_iter=10000),
+               "KNN": KNeighborsClassifier(n_neighbors=3),
+               "NB": GaussianNB(),
+               "ANN": MLPClassifier(random_state=1, max_iter=300)}
 
-def read_csv_data_from_folder(folder_path):
-    dataframes_list = []
-    csv_files = list(filter(lambda f: f.endswith('.csv'), os.listdir(folder_path)))
-    for csv_file in csv_files:
-        temp_df = pd.read_csv(csv_file)
-        dataframes_list.append(temp_df)
-    return dataframes_list
+
+def find_csv_files_in_folder(folder_path):
+    dataframes = {}
+    # csv_files = list(filter(lambda f: f.endswith('.csv'), os.listdir(folder_path)))
+    # for csv_file in csv_files:
+    print(f"Looking for csv files in {folder_path}")
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.csv'):
+                file_name = file.split('.csv')[0]
+                csv_file = os.path.join(root, file)
+                print(f"Found [{file_name}] dataset")
+                # temp_df = pd.read_csv(csv_file)
+                dataframes[file_name] = csv_file
+    return dataframes
 
 
 def normalize_data(data):
@@ -43,16 +52,14 @@ def normalize_data(data):
 def run_classifier(classifier, X, y):
     clf = classifiers[classifier]
     clf_cv = cross_val_score(clf, X, y, cv=10)
-    print("=== Mean accuracy  ===")
-    print("Mean accuracy Score - {}: ".format(classifier), clf_cv.mean())
     return clf_cv.mean()
 
 
-def skewness(X):
+def skewness(X, **kwargs):
     skew = {}
     i = 0
     skewness = pd.DataFrame()
-    skewness['Skew'] = X.skew(axis=0)
+    skewness['Skew'] = scipy.stats.skew(X, axis=0)
     skewi = skewness['Skew']
     for item in skewi:
         skew[i] = item
@@ -62,7 +69,7 @@ def skewness(X):
     return sorted_keys
 
 
-def variance(X):
+def variance(X, **kwargs):
     var = {}
     i = 0
     variance = pd.DataFrame()
@@ -83,51 +90,83 @@ def run_fs_method(data, fs, k, classifier):
                   "mim": MIM.mim,
                   "skewness": skewness,
                   "variance": variance}
-    # for i in range(k)
-    # calculate time and acc for fs method
+
     total_acc = 0
     total_time = 0
     y = data.iloc[:, -1:]
     data_values = data.values.astype(float)
     kwargs_W = {"metric": "euclidean", "neighbor_mode": "knn", "weight_mode": "heat_kernel", "k": k, 't': 1}
-    W = construct_W.construct_W(data, **kwargs_W)
+    try:
+        W = construct_W.construct_W(data, **kwargs_W)
+    except MemoryError:
+        print("Memory error skipping fs method.")
+        return 0, 0
 
+    # Running evaluation:
     for i in range(1, k + 1):
         start = time.time()
-        kwargs = {"X": data_values, "y": y, "W": W, "n_selected_features": i}
-        score = fs_methods[fs](**kwargs)
+        kwargs = {"X": data_values, "y": y, "n_selected_features": i, "W": W}
+        try:
+            score = fs_methods[fs](**kwargs)
+        except MemoryError:
+            print("Memory error skipping fs method.")
+            return 0, 0
         ranking = list(score)[:i]
-        end = time.time()
+        time_passed = time.time() - start
         data_cut = data.iloc[:, ranking]
         data_cut.columns = [''] * len(data_cut.columns)
-        accuracy = run_classifier(data_cut, y, classifier)
+        print(f"Running {classifier}")
+        accuracy = run_classifier(classifier, data_cut, y)
+        print(f"Accuracy {accuracy}, Time {time_passed}")
         total_acc += accuracy
-        total_time += end - start
+        total_time += time_passed
 
     return total_acc / k, total_time / k
 
 
 def run_simulations(k, classifier, folder_path):
-    fs_methods = ["LS", "FCBF", "MRMR", "MIM", "Skewness", "Variance"]
-    acc_results = pd.DataFrame(columns="Dataset" + fs_methods)
-    time_results = pd.DataFrame(columns="Dataset" + fs_methods)
+    fs_methods = ["LS", "MRMR", "FCBF", "MIM", "Skewness", "Variance"]
+    acc_results = pd.DataFrame(columns=["Dataset"] + fs_methods)
+    time_results = pd.DataFrame(columns=["Dataset"] + fs_methods)
 
-    for data_name, data in read_csv_data_from_folder(folder_path).items():
+    for data_name, data_path in find_csv_files_in_folder(folder_path).items():
+        print(f"Loading [{data_name}]")
+        try:
+            data = pd.read_csv(data_path)
+        except MemoryError:
+            print("Memory error, skipping dataset.")
+            continue
+        print("Normalizing Data")
         normalize_data(data)
         data_acc_res = {"Dataset": data_name}
         data_time_res = {"Dataset": data_name}
 
+        print("Begin feature selection evaluations")
         for fs in fs_methods:
+            if fs == "FCBF":
+                continue
+            print(f"Running {fs}")
             avc_acc, avg_time = run_fs_method(data, fs.lower(), k, classifier)
+            print(f"Finished {fs} evaluation.")
             data_acc_res[fs] = avc_acc
             data_time_res[fs] = avg_time
 
-        acc_results.append(data_acc_res)
-        time_results.append(data_time_res)
+        acc_results = acc_results.append(data_acc_res, ignore_index=True)
+        time_results = time_results.append(data_time_res, ignore_index=True)
+
+    print("Final accuracy results table:")
+    print(acc_results)
+    acc_results.to_csv('acc_results.csv')
+
+    print("Final cpu time results table:")
+    print(time_results)
+    time_results.to_csv('time_results.csv')
 
 
 def main():
-    run_simulations(5, "LinearSVM", "")
+    run_simulations(5, "LinearSVM",
+                    r"C:\Users\Daniel\Desktop\Fires Dataset-20220425T153127Z-001\Fires Dataset\datasets\a")
+
 
 if __name__ == "__main__":
-    pass
+    main()
