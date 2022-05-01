@@ -109,7 +109,7 @@ def run_fs_method(data, fs, k, classifier):
         time_passed = time.time() - start
         data_cut = data.iloc[:, ranking]
         data_cut.columns = [''] * len(data_cut.columns)
-        print(f"Running {classifier}")
+        print("Running classifier")
         accuracy = run_classifier(classifier, data_cut, y)
         print(f"Accuracy {accuracy}, Time {time_passed}")
         total_acc += accuracy
@@ -139,7 +139,7 @@ def run_simulations(k, classifier, folder_path):
         for fs in fs_methods:
             if fs == "FCBF":
                 continue
-            print(f"Running {fs}")
+            print(f"Evaluating {fs}")
             avc_acc, avg_time = run_fs_method(data, fs.lower(), k, classifier)
             print(f"Finished {fs} evaluation.")
             data_acc_res[fs] = avc_acc
@@ -159,6 +159,7 @@ def run_simulations(k, classifier, folder_path):
 
 def main():
     for c in classifiers:
+        print(f"Running {c} model")
         run_simulations(5, c, r"C:\Users\Daniel\Desktop\Fires Dataset-20220425T153127Z-001\Fires Dataset\datasets\a")
 
 
