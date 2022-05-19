@@ -88,7 +88,6 @@ def run_fs_method(data, fs, k, classifier):
     total_acc = 0
     total_time = 0
     y = np.ravel(data.iloc[:, -1:])
-    #data_values = data.values.astype(float)
     X = data.iloc[:, :-1]
     X_values = X.values.astype(float)
     kwargs_W = {"metric": "euclidean", "neighbor_mode": "knn", "weight_mode": "heat_kernel", "k": k, 't': 1}
