@@ -25,6 +25,9 @@ classifiers = {"LinearSVM": LinearSVC(random_state=0, tol=1e-5, max_iter=10000),
 
 
 def find_csv_files_in_folder(folder_path):
+    """
+    Read data from folder that contains csv file
+    """
     dataframes = {}
     print(f"Looking for csv files in {folder_path}")
     for root, dirs, files in os.walk(folder_path):
@@ -38,18 +41,28 @@ def find_csv_files_in_folder(folder_path):
 
 
 def normalize_data(data):
+    """
+    Normalize data using min_max scalar
+    """
+    features = list(data.columns)
     scaler = MinMaxScaler()
-    scaler.fit(data)
-    return scaler.transform(data)
+    scaler.fit(data[features[0:len(features)-1]])
+    return scaler.transform(data[features[0:len(features)-1]])
 
 
 def run_classifier(classifier, X, y):
+    """
+    Run the classifier
+    """
     clf = classifiers[classifier]
     clf_cv = cross_val_score(clf, X, y, cv=10)
     return clf_cv.mean()
 
 
 def skewness(X, **kwargs):
+    """
+    Calculate the skewness
+    """
     skew = {}
     i = 0
     skewness = pd.DataFrame()
@@ -64,6 +77,9 @@ def skewness(X, **kwargs):
 
 
 def variance(X, **kwargs):
+    """
+    Calculate the variance
+    """
     var = {}
     i = 0
     variance = pd.DataFrame()
@@ -78,6 +94,9 @@ def variance(X, **kwargs):
 
 
 def run_fs_method(data, fs, k, classifier):
+    """
+    Calculate the average run time and accuracy for feature selection method
+    """
     fs_methods = {"ls": lap_score.lap_score,
                   "fcbf": FCBF.fcbf,
                   "mrmr": MRMR.mrmr,
@@ -120,6 +139,9 @@ def run_fs_method(data, fs, k, classifier):
 
 
 def run_simulations(k, classifier, folder_path):
+    """
+    Main function for running the program
+    """
     fs_methods = ["LS", "MRMR", "FCBF", "MIM", "Skewness", "Variance"]
     acc_results = pd.DataFrame(columns=["Dataset"] + fs_methods)
     time_results = pd.DataFrame(columns=["Dataset"] + fs_methods)
