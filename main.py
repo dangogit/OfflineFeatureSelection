@@ -88,10 +88,12 @@ def run_fs_method(data, fs, k, classifier):
     total_acc = 0
     total_time = 0
     y = np.ravel(data.iloc[:, -1:])
-    data_values = data.values.astype(float)
+    #data_values = data.values.astype(float)
+    X = data.iloc[:, :-1]
+    X_values = X.values.astype(float)
     kwargs_W = {"metric": "euclidean", "neighbor_mode": "knn", "weight_mode": "heat_kernel", "k": k, 't': 1}
     try:
-        W = construct_W.construct_W(data, **kwargs_W)
+        W = construct_W.construct_W(X, **kwargs_W)
     except MemoryError:
         print("Memory error skipping fs method.")
         return 0, 0
@@ -99,7 +101,7 @@ def run_fs_method(data, fs, k, classifier):
     # Running evaluation:
     for i in range(1, k + 1):
         start = time.time()
-        kwargs = {"X": data_values, "y": y, "n_selected_features": i, "W": W}
+        kwargs = {"X": X_values, "y": y, "n_selected_features": i, "W": W}
         try:
             score = fs_methods[fs](**kwargs)
         except MemoryError:
@@ -107,7 +109,7 @@ def run_fs_method(data, fs, k, classifier):
             return 0, 0
         ranking = list(score)[:i]
         time_passed = time.time() - start
-        data_cut = data.iloc[:, ranking]
+        data_cut = X.iloc[:, ranking]
         data_cut.columns = [''] * len(data_cut.columns)
         print("Running classifier")
         accuracy = run_classifier(classifier, data_cut, y)
